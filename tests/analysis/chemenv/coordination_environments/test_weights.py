@@ -17,6 +17,7 @@ from pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies impo
     DistancePlateauNbSetWeight,
     NormalizedAngleDistanceNbSetWeight,
     SelfCSMNbSetWeight,
+    WeightedNbSetChemenvStrategy,
 )
 from pymatgen.analysis.chemenv.coordination_environments.structure_environments import StructureEnvironments
 from pymatgen.util.testing import MatSciTest
@@ -788,6 +789,7 @@ class TestWeightSerialization:
             DistancePlateauNbSetWeight(),
             AnglePlateauNbSetWeight(),
             DeltaDistanceNbSetWeight(nbs_source="nb_sets"),
+            DistanceNbSetWeight(nbs_source="nb_sets"),
         ],
         ids=lambda weight: type(weight).__name__,
     )
@@ -817,6 +819,10 @@ class TestWeightSerialization:
             SelfCSMNbSetWeight(),
             DeltaCSMNbSetWeight(),
             DistanceAngleAreaNbSetWeight(),
+            DistancePlateauNbSetWeight(),
+            AnglePlateauNbSetWeight(),
+            DistanceNbSetWeight(),
+            DeltaDistanceNbSetWeight(),
         ],
         ids=lambda weight: type(weight).__name__,
     )
@@ -832,11 +838,51 @@ class TestWeightSerialization:
         )
         assert lin != CNBiasNbSetWeight.linearly_equidistant(weight_cn1=1, weight_cn13=14)
 
-    def test_plateau_and_delta_distance_eq(self):
-        # These weights compare equal whenever they are of the same type
-        assert DistancePlateauNbSetWeight() == DistancePlateauNbSetWeight(distance_function={"type": "other"})
+    @pytest.mark.parametrize(
+        ("cls", "kwargs"),
+        [
+            (DistancePlateauNbSetWeight, {"distance_function": {"type": "other"}}),
+            (
+                DistancePlateauNbSetWeight,
+                {"weight_function": {"function": "inverse_smootherstep", "options": {"lower": 0.1, "upper": 0.4}}},
+            ),
+            (AnglePlateauNbSetWeight, {"angle_function": {"type": "other"}}),
+            (
+                AnglePlateauNbSetWeight,
+                {"weight_function": {"function": "inverse_smootherstep", "options": {"lower": 0.1, "upper": 0.15}}},
+            ),
+            (DistanceNbSetWeight, {"nbs_source": "nb_sets"}),
+            (
+                DistanceNbSetWeight,
+                {"weight_function": {"function": "smootherstep", "options": {"lower": 1.1, "upper": 1.3}}},
+            ),
+            (DeltaDistanceNbSetWeight, {"nbs_source": "nb_sets"}),
+            (
+                DeltaDistanceNbSetWeight,
+                {"weight_function": {"function": "smootherstep", "options": {"lower": 0.05, "upper": 0.2}}},
+            ),
+        ],
+    )
+    def test_plateau_and_distance_eq_compares_parameters(self, cls, kwargs):
+        # Regression test for https://github.com/materialsproject/pymatgen/issues/2676
+        assert cls() == cls()
+        assert cls(**kwargs) == cls(**kwargs)
+        assert cls(**kwargs) != cls()
+
+    def test_plateau_eq_different_types(self):
         assert AnglePlateauNbSetWeight() != DistancePlateauNbSetWeight()
-        assert DeltaDistanceNbSetWeight() == DeltaDistanceNbSetWeight(nbs_source="nb_sets")
+        assert DistanceNbSetWeight() != DeltaDistanceNbSetWeight()
+
+    def test_weighted_strategy_eq_uses_weight_parameters(self):
+        def strategy(weight_function):
+            return WeightedNbSetChemenvStrategy(
+                nb_set_weights=[DistancePlateauNbSetWeight(weight_function=weight_function)]
+            )
+
+        default = {"function": "inverse_smootherstep", "options": {"lower": 0.2, "upper": 0.4}}
+        other = {"function": "inverse_smootherstep", "options": {"lower": 0.1, "upper": 0.4}}
+        assert strategy(default) == strategy(default)
+        assert strategy(default) != strategy(other)
 
 
 class TestWeightValidation:

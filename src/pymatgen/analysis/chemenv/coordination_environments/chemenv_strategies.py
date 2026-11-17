@@ -2395,7 +2395,10 @@ class DistancePlateauNbSetWeight(NbSetWeight):
         return self.weight_rf.eval(nb_set.distance_plateau())
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, type(self))
+        if not isinstance(other, type(self)):
+            return NotImplemented
+
+        return self.distance_function == other.distance_function and self.weight_function == other.weight_function
 
     def as_dict(self):
         """MSONable dict."""
@@ -2462,7 +2465,10 @@ class AnglePlateauNbSetWeight(NbSetWeight):
         return self.weight_rf.eval(nb_set.angle_plateau())
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, type(self))
+        if not isinstance(other, type(self)):
+            return NotImplemented
+
+        return self.angle_function == other.angle_function and self.weight_function == other.weight_function
 
     def as_dict(self):
         """MSONable dict."""
@@ -2544,6 +2550,12 @@ class DistanceNbSetWeight(NbSetWeight):
             return 1
 
         return self.weight_rf.eval(mind)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+
+        return self.weight_function == other.weight_function and self.nbs_source == other.nbs_source
 
     def as_dict(self):
         """MSOnable dict."""
@@ -2630,7 +2642,10 @@ class DeltaDistanceNbSetWeight(NbSetWeight):
         return eval_rf(min_other - nb_set_max)
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, type(self))
+        if not isinstance(other, type(self)):
+            return NotImplemented
+
+        return self.weight_function == other.weight_function and self.nbs_source == other.nbs_source
 
     def as_dict(self):
         """MSONable dict."""
